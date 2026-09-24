@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist de Retiro — Rollings Best Choice Fuego 50 G (Lote 20626 1 M19)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --navy:#0B3350;
+    --navy-deep:#082439;
+    --orange:#D97A22;
+    --orange-soft:#F4C98B;
+    --green:#2E7D52;
+    --green-soft:#DCEFE3;
+    --red:#B23A32;
+    --bg:#F3F2EE;
+    --surface:#FFFFFF;
+    --line:#E3E0D8;
+    --text:#1D2226;
+    --text-mut:#5B6570;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --cond: 'Barlow Semi Condensed', var(--sans);
+  }
+  @font-face{ font-family:'__preload'; src:local('a'); }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--orange-soft); }
+
+  /* ---------- header ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    background:linear-gradient(180deg,var(--navy) 0%, var(--navy-deep) 100%);
+    color:#fff;
+    padding:18px 20px 16px;
+    box-shadow:0 4px 14px rgba(8,36,57,.25);
+  }
+  .topbar-inner{ max-width:960px; margin:0 auto; }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--orange-soft); display:flex; align-items:center; gap:8px; margin-bottom:6px;
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--orange); box-shadow:0 0 0 3px rgba(217,122,34,.25);}
+  h1{
+    font-family:var(--cond); font-weight:600; font-size:24px; line-height:1.15;
+    margin:0 0 2px; letter-spacing:.2px;
+  }
+  .article-name{ font-size:13.5px; color:#C9D6DD; margin:0 0 14px; }
+  .article-name b{ color:#fff; font-weight:600; }
+
+  .progress-wrap{ display:flex; align-items:center; gap:14px; }
+  .progress-track{
+    flex:1; height:10px; border-radius:6px; background:rgba(255,255,255,.14);
+    overflow:hidden; position:relative;
+  }
+  .progress-fill{
+    height:100%; border-radius:6px;
+    background:linear-gradient(90deg,var(--orange), #E9A65A);
+    transition:width .4s ease;
+  }
+  .progress-fill.done{ background:linear-gradient(90deg,var(--green), #4CA576); }
+  .progress-nums{ font-family:var(--mono); font-size:13px; white-space:nowrap; color:#fff; }
+  .progress-nums b{ font-size:15px; }
+  .progress-pct{ color:var(--orange-soft); }
+
+  /* ---------- controls ---------- */
+  .controls{
+    position:sticky; top:104px; z-index:25;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+    padding:12px 20px;
+  }
+  .controls-inner{
+    max-width:960px; margin:0 auto;
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  input[type=search], select{
+    font-family:var(--sans); font-size:13.5px;
+    border:1px solid var(--line); background:var(--surface);
+    border-radius:8px; padding:9px 11px; color:var(--text);
+  }
+  input[type=search]{ flex:1 1 220px; min-width:160px; }
+  input[type=search]:focus, select:focus{ outline:2px solid var(--navy); outline-offset:1px; }
+  select{ flex:0 0 auto; cursor:pointer; }
+  .btn-export{
+    flex:0 0 auto; font-family:var(--sans); font-weight:600; font-size:12.5px;
+    padding:9px 14px; border-radius:8px; border:1px solid var(--navy);
+    background:var(--navy); color:#fff; cursor:pointer; display:flex; align-items:center; gap:6px;
+    white-space:nowrap;
+  }
+  .btn-export:hover{ filter:brightness(1.12); }
+  .btn-export:disabled{ opacity:.6; cursor:wait; }
+  .chip-row{ display:flex; gap:6px; max-width:960px; margin:10px auto 0; padding:0 20px; flex-wrap:wrap; }
+  .chip{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.03em;
+    padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+    background:var(--surface); color:var(--text-mut); cursor:pointer; user-select:none;
+    transition:all .15s ease;
+  }
+  .chip.active{ background:var(--navy); border-color:var(--navy); color:#fff; }
+  .chip .n{ opacity:.7; margin-left:3px; }
+
+  /* ---------- list ---------- */
+  main{ max-width:960px; margin:0 auto; padding:18px 20px 60px; }
+  .region-group{ margin-bottom:22px; }
+  .region-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 4px; cursor:pointer; user-select:none;
+  }
+  .region-title{
+    font-family:var(--cond); font-weight:600; font-size:16px; letter-spacing:.02em;
+    display:flex; align-items:center; gap:8px;
+  }
+  .region-title .caret{ transition:transform .18s ease; color:var(--text-mut); font-size:12px; }
+  .region-group.collapsed .caret{ transform:rotate(-90deg); }
+  .region-count{
+    font-family:var(--mono); font-size:12px; color:var(--text-mut);
+    background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:3px 8px;
+  }
+  .region-count b{ color:var(--green); }
+  .region-list{ display:flex; flex-direction:column; gap:8px; }
+  .region-group.collapsed .region-list{ display:none; }
+
+  .store-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .store-card.confirmed{ border-color:#B9DCC5; background:var(--green-soft); }
+  .store-card:hover{ box-shadow:0 2px 10px rgba(11,51,80,.06); }
+
+  .status-dot{
+    flex:0 0 auto; width:11px; height:11px; border-radius:50%;
+    background:var(--orange); box-shadow:0 0 0 3px rgba(217,122,34,.16);
+  }
+  .store-card.confirmed .status-dot{ background:var(--green); box-shadow:0 0 0 3px rgba(46,125,82,.16); }
+
+  .store-info{ flex:1; min-width:0; }
+  .store-name{ font-weight:600; font-size:14.5px; line-height:1.25; }
+  .store-meta{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-mut);
+    margin-top:3px; display:flex; gap:10px; flex-wrap:wrap;
+  }
+  .store-meta span b{ color:var(--text); font-weight:600; }
+  .store-meta .zona-tag{ color:var(--navy); }
+
+  .exist-badge{
+    flex:0 0 auto; text-align:right; font-family:var(--mono); font-size:11px; color:var(--text-mut);
+    line-height:1.5; min-width:64px;
+  }
+  .exist-badge b{ display:block; font-size:15px; color:var(--text); font-weight:600; }
+
+  .btn{
+    flex:0 0 auto; font-family:var(--sans); font-weight:600; font-size:12.5px;
+    padding:8px 14px; border-radius:8px; border:1px solid transparent; cursor:pointer;
+    transition:transform .1s ease, filter .15s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-confirm{ background:var(--navy); color:#fff; }
+  .btn-confirm:hover{ filter:brightness(1.12); }
+  .btn-view{ background:transparent; color:var(--green); border-color:#B9DCC5; }
+  .btn-view:hover{ background:#fff; }
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--text-mut);
+  }
+  .empty-state .big{ font-family:var(--cond); font-size:19px; color:var(--text); margin-bottom:4px; }
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(8,20,30,.55);
+    display:none; align-items:flex-end; justify-content:center; z-index:100;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.open{ display:flex; }
+  @media(min-width:600px){ .overlay{ align-items:center; } }
+
+  .modal{
+    background:var(--surface); width:100%; max-width:480px;
+    border-radius:16px 16px 0 0; max-height:92vh; overflow-y:auto;
+    animation:slideUp .22s ease;
+    position:relative;
+  }
+  @media(min-width:600px){ .modal{ border-radius:16px; } }
+  @keyframes slideUp{ from{ transform:translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+
+  .modal-head{
+    padding:18px 20px 12px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:var(--surface); z-index:2;
+  }
+  .modal-close{
+    position:absolute; top:14px; right:14px; width:30px; height:30px; border-radius:50%;
+    background:var(--bg); border:none; cursor:pointer; font-size:16px; color:var(--text-mut);
+  }
+  .modal-region{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--navy); }
+  .modal-title{ font-family:var(--cond); font-weight:600; font-size:20px; margin:2px 0 0; }
+  .modal-sub{ font-size:12.5px; color:var(--text-mut); margin-top:4px; font-family:var(--mono); }
+
+  .modal-body{ padding:16px 20px 22px; }
+  .field-label{ font-size:12.5px; font-weight:600; margin:14px 0 6px; color:var(--text); }
+  .field-label:first-child{ margin-top:0; }
+
+  .qty-row{ display:flex; gap:10px; }
+  .qty-field{ flex:1; position:relative; }
+  .qty-input{ padding-right:34px; font-family:var(--mono); font-weight:600; }
+  .qty-unit{
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    font-family:var(--mono); font-size:12px; color:var(--text-mut); pointer-events:none;
+  }
+  .qty-hint{ font-size:11.5px; color:var(--text-mut); margin-top:6px; line-height:1.4; }
+  .qty-summary{
+    font-family:var(--mono); font-size:16px; font-weight:600; text-align:center;
+    background:var(--bg); border-radius:9px; padding:10px; color:var(--text);
+  }
+
+  .photo-drop{
+    border:1.5px dashed var(--line); border-radius:12px; padding:18px;
+    text-align:center; cursor:pointer; background:var(--bg); position:relative; overflow:hidden;
+  }
+  .photo-drop.has-photo{ padding:0; border-style:solid; border-color:#B9DCC5; }
+  .photo-drop img{ width:100%; display:block; max-height:260px; object-fit:cover; }
+  .photo-drop .hint{ font-size:12.5px; color:var(--text-mut); }
+  .photo-drop .hint b{ color:var(--navy); }
+  .photo-drop .icon{ font-size:26px; margin-bottom:6px; display:block; }
+  .photo-actions{
+    position:absolute; bottom:8px; right:8px; display:flex; gap:6px;
+  }
+  .photo-actions button{
+    font-family:var(--sans); font-size:11.5px; font-weight:600; padding:6px 10px;
+    border-radius:7px; border:none; background:rgba(8,20,30,.72); color:#fff; cursor:pointer;
+  }
+
+  textarea, .text-input{
+    width:100%; font-family:var(--sans); font-size:13.5px; border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px; resize:vertical; background:var(--bg); color:var(--text);
+  }
+  textarea{ min-height:64px; }
+  textarea:focus, .text-input:focus{ outline:2px solid var(--navy); outline-offset:1px; background:#fff; }
+
+  .modal-footer{
+    display:flex; gap:10px; margin-top:20px;
+  }
+  .btn-big{
+    flex:1; padding:13px; border-radius:10px; font-weight:700; font-size:14px;
+    border:none; cursor:pointer; font-family:var(--sans);
+  }
+  .btn-primary{ background:var(--navy); color:#fff; }
+  .btn-primary:disabled{ background:#B9C2C9; cursor:not-allowed; }
+  .btn-danger-ghost{ background:transparent; color:var(--red); border:1px solid #E7C6C2; flex:0 0 auto; padding:13px 16px; }
+
+  .stamp-wrap{ display:flex; justify-content:center; padding:8px 0 4px; }
+  .stamp{
+    font-family:var(--cond); font-weight:700; font-size:14px; letter-spacing:.06em;
+    color:var(--green); border:2.5px solid var(--green); border-radius:8px;
+    padding:8px 16px; transform:rotate(-4deg); text-transform:uppercase;
+    box-shadow:0 0 0 3px rgba(46,125,82,.08) inset;
+  }
+  .confirm-meta{ font-family:var(--mono); font-size:12px; color:var(--text-mut); text-align:center; margin-top:8px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--navy-deep); color:#fff; padding:11px 18px; border-radius:9px;
+    font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease;
+    z-index:200; box-shadow:0 8px 24px rgba(0,0,0,.25);
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .shared-note{
+    max-width:960px; margin:0 auto; padding:10px 20px 0;
+    font-size:11.5px; color:var(--text-mut); font-family:var(--mono);
+    display:flex; align-items:center; gap:6px;
+  }
+  .loading-line{ text-align:center; padding:40px; color:var(--text-mut); font-family:var(--mono); font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="eyebrow"><span class="dot"></span>Checklist de retiro de producto</div>
+    <h1>Confirmación de resguardo por tienda</h1>
+    <p class="article-name"><b>Rollings Best Choice Fuego 50 G</b> · Lote 20626 1 M19 · 8:24:28 · 252 tiendas</p>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-nums"><b id="progCount">0</b>/252 · <span class="progress-pct" id="progPct">0%</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <input type="search" id="searchInput" placeholder="Buscar tienda, ID o zona…">
+    <select id="regionFilter"><option value="">Todas las regiones</option></select>
+    <select id="statusFilter">
+      <option value="">Todos los estados</option>
+      <option value="pending">Pendientes</option>
+      <option value="confirmed">Confirmadas</option>
+    </select>
+    <button class="btn-export" id="exportBtn">⬇ Exportar a Excel</button>
+  </div>
+</div>
+<p class="shared-note" id="sharedNote"></p>
+
+<main id="mainContent">
+  <div class="loading-line">Cargando checklist…</div>
+</main>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-region" id="modalRegion">REGIÓN</div>
+      <div class="modal-title" id="modalTitle">Tienda</div>
+      <div class="modal-sub" id="modalSub">ID · Zona</div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ DATA ============ */
+const STORES = [{"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 106, "tienda": "ANGEL R CABADA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 111, "tienda": "XALAPA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 113, "tienda": "LAS TRANCAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 121, "tienda": "JALACINGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 122, "tienda": "TEZIUTLAN LERDO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 125, "tienda": "TEOCELO 5 DE MAYO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 135, "tienda": "MARTIRES DEL 28", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 147, "tienda": "JOSE AZUETA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 156, "tienda": "LAS VIGAS VER", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 207, "tienda": "ATENAS VERACRUZANA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 214, "tienda": "PLAYA LINDA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 223, "tienda": "PASEO LA BURRITA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 236, "tienda": "PAPANTLA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 240, "tienda": "ALTO LUCERO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 253, "tienda": "TAMALIN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 254, "tienda": "ENTABLADERO BENITO JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 259, "tienda": "JALAPILLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 260, "tienda": "JUCHIQUE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 263, "tienda": "NAOLINCO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 265, "tienda": "CAMALOTE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 266, "tienda": "HUEHUETLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 270, "tienda": "TIERRA BLANCA MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 272, "tienda": "COATEPEC MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 313, "tienda": "LA MIXTEQUILLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 315, "tienda": "TEMASCAL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 333, "tienda": "LOMA BONITA MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 335, "tienda": "COSOLAPA MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 337, "tienda": "CHIGNAUTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 338, "tienda": "RIO MEDIO 4", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 347, "tienda": "AV QUEVEDO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 352, "tienda": "HUEYTAMALCO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 364, "tienda": "VALLE NACIONAL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 369, "tienda": "PANUCO ABASTO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 371, "tienda": "ACATLAN CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 415, "tienda": "ACTOPAN SAN FRANCISCO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 419, "tienda": "SOLEDAD DE DOBLADO 5 DE MAYO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 426, "tienda": "PASO DE OVEJAS INSURGENTES 1", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 435, "tienda": "LA PERLA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 436, "tienda": "TLALIXCOYAN 1", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 443, "tienda": "TOTUTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 447, "tienda": "COSAMALOAPAN MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 471, "tienda": "PASO DEL MACHO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 478, "tienda": "ALDAMA TUXTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 493, "tienda": "TUXTEPEC CENTRO 2", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 502, "tienda": "ZOZOCOLCO CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 503, "tienda": "JAMAPA ORIENTE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 504, "tienda": "TLALNEHUAYOCAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 515, "tienda": "LOS NARANJOS VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 520, "tienda": "TUXTEPEC CARRANZA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 541, "tienda": "TECOLUTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 562, "tienda": "PUENTE MORENO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 565, "tienda": "CALLE 8 COL CARRANZA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 566, "tienda": "TIHUATLAN CUAUHTEMOC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 571, "tienda": "POTRERO NUEVO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 574, "tienda": "ALAMO INDEPENDENCIA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 575, "tienda": "COTAXTLA JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 591, "tienda": "PEROTE ALDAMA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 592, "tienda": "PLATON SANCHEZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 618, "tienda": "ALTOTONGA HIDALGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 622, "tienda": "TEMPOAL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 637, "tienda": "NAUTLA MARACAIBO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 643, "tienda": "POZA RICA AVILA CAMACHO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 652, "tienda": "FILOMENO MATA 5 DE MAYO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 671, "tienda": "ATLAPEXCO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 673, "tienda": "INDEPENDENCIA MARTINEZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 680, "tienda": "OJITLAN II", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 702, "tienda": "CARDEL REVOLUCION", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 703, "tienda": "CARRANZA 5 DE MAYO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 704, "tienda": "REVOLUCION SAN RAFAEL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 705, "tienda": "CARRIZAL ZAPATA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 707, "tienda": "EL RUBI", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 721, "tienda": "JALTOCAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 734, "tienda": "TUXTEPEC HIDALGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 735, "tienda": "CASITAS VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 736, "tienda": "MARIA DE LA TORRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 737, "tienda": "EL MORRO VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 751, "tienda": "MANGOS ALTAMIRA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 760, "tienda": "TANTOYUCA CALLE 12 DE JULIO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 776, "tienda": "CERVECERA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 782, "tienda": "TEPETZINTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 787, "tienda": "CHICONTEPEC VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 812, "tienda": "COSAUTLAN VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 821, "tienda": "BOCA DEL RIO CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 822, "tienda": "MATAMOROS PINOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 823, "tienda": "INTERCOLONIA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 829, "tienda": "MANTE SUZUKI", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 834, "tienda": "ORIZATLAN HIDALGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 853, "tienda": "PALMA SOLA VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 862, "tienda": "FORTIN PARQUE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 875, "tienda": "TAMPICO MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 876, "tienda": "PANUCO MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 877, "tienda": "CUITLAHUAC SAN PEDRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 879, "tienda": "METLALTOYUCA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 886, "tienda": "TEJERIA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 912, "tienda": "LA CABRILLA TAMIAHUA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 915, "tienda": "NUEVO NECAXA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 931, "tienda": "MERCADO HEROES 47 TUXPAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 932, "tienda": "J B LOBOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 938, "tienda": "ACULTZINGO CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 959, "tienda": "TAMPICO PALAFOX", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 986, "tienda": "ESTACION MANUEL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 1002, "tienda": "DOS LOMAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 1009, "tienda": "CERRO AZUL LA CURVA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 1012, "tienda": "MALTRATA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 1016, "tienda": "MISANTLA E ALATRISTE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 1020, "tienda": "AMAPOLAS PUERTO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 1056, "tienda": "OZULUAMA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 1092, "tienda": "ALDAMA LIBERTAD", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 1094, "tienda": "ALTAMIRA LAGUNA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 1125, "tienda": "COACOATZINTLA VER", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 1129, "tienda": "TAMPICO MERCADO NORTE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1145, "tienda": "OASIS SONORA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 1152, "tienda": "PAPANTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 1153, "tienda": "TEZONAPA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 1157, "tienda": "SAN JOSE CHILTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 1158, "tienda": "REFORMA COATZINTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 1174, "tienda": "TORTUGA PUENTE MORENO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 1187, "tienda": "PUEBLO VIEJO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 1205, "tienda": "TEQUILA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 1209, "tienda": "TUXPAN LOS CABOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 1235, "tienda": "TUXTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 1236, "tienda": "HUEJUTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 1237, "tienda": "TLALTETELA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 1244, "tienda": "JALAPA DE DIAZ JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 1246, "tienda": "MADERO SANTA ELENA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 1247, "tienda": "YANGA CALLE 8", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 1249, "tienda": "NUEVO TAMPICO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 1259, "tienda": "AGUA FRIA KIOSKO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 1261, "tienda": "VISTAMAR", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1264, "tienda": "VALLE GAVIOTA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 1272, "tienda": "TUXPAN AMERICAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 1283, "tienda": "COXQUIHUI HIDALGO Y RAYON", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "MTZ DE LA TORRE", "idTienda": 1286, "tienda": "EL PASO TANTOYUCA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 1289, "tienda": "TANTOYUCA MI MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1292, "tienda": "XANA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 1307, "tienda": "MECAPALAPA PUEBLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 1313, "tienda": "CABADA GANADERA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 1316, "tienda": "IXHUATLAN CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 1318, "tienda": "LAS VEGAS OBREGON", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 1321, "tienda": "LA PETROMEX", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 1349, "tienda": "TIERRA COLORADA VER", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 1355, "tienda": "ANTON LIZARDO AZUETA II", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 1383, "tienda": "TUXTEPEC 5 DE MAYO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 1392, "tienda": "MANLIO BENITO JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 1395, "tienda": "AYOTZINTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO NORTE", "idTienda": 1404, "tienda": "TAMPICO CALLE HEROES CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 1411, "tienda": "IXCATEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 1412, "tienda": "EL HIGO MERCADO C", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 1417, "tienda": "CENTRAL CARAM", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 1426, "tienda": "HUEJUTLA MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 1438, "tienda": "TIERRA BLANCA PLAZA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 1497, "tienda": "CHICONTEPEC CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 1502, "tienda": "AV 6 CORDOBA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 1504, "tienda": "ABASTO PLAN DE AYALA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 1515, "tienda": "AMATLAN REYES", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 1527, "tienda": "AMERICA PUENTE MORENO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 1530, "tienda": "CARRILLO CRUCERO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 1535, "tienda": "AGUA DULCE PARQUE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 1545, "tienda": "ARISTA Y GLADIOLAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 1552, "tienda": "TEHUETLAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 1555, "tienda": "JOACHIN CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1559, "tienda": "LA ROTONDA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 1576, "tienda": "MATAMOROS POZA RICA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 1583, "tienda": "CAMERINO Z MENDOZA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUEJUTLA", "idTienda": 1597, "tienda": "HUEJUTLA CHACATITLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 1605, "tienda": "SAN ANDRES CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 1637, "tienda": "LOS LAGOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTEPEC", "idTienda": 1641, "tienda": "GRAJALES TUXTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 1648, "tienda": "COLATLAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 1652, "tienda": "KAWATZIN COLONIA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 1653, "tienda": "NACIONAL POZA RICA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 1659, "tienda": "CUICHAPA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 1664, "tienda": "LERDO CARRETERA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 1683, "tienda": "RAFAEL CRAVIOTO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1689, "tienda": "RIO SAN ISIDRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TAMPICO SUR", "idTienda": 1715, "tienda": "COCOTERO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 1731, "tienda": "EL CONEJO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 1732, "tienda": "TANTOYUCA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 1740, "tienda": "LA LAGUNA 2", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 1742, "tienda": "MONTE BLANCO CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 1785, "tienda": "LOMA BONITA CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 1792, "tienda": "MI TANTOYUCA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 1796, "tienda": "BOCA NEGRA ABASTO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 1811, "tienda": "TETILA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 1822, "tienda": "RESERVA II", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 1844, "tienda": "SAN BARTOLO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 2520, "tienda": "ALTOTONGA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 2845, "tienda": "TLACOTALPAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 2853, "tienda": "BENITO JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 2855, "tienda": "CARLOS A. CARRILLO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 2856, "tienda": "ALVARADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 2857, "tienda": "EBANO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 2858, "tienda": "TANTOYUCA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TANTOYUCA", "idTienda": 2860, "tienda": "16 DE SEPTIEMBRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 2863, "tienda": "SOLEDAD DE DOBLADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 2864, "tienda": "TLAPACOYAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 2865, "tienda": "ALAMO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 2867, "tienda": "MISANTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 2868, "tienda": "NARANJOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 2869, "tienda": "REVOLUCION SOCIAL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 2920, "tienda": "TEZIUTLAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 2945, "tienda": "CERRO AZUL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 3114, "tienda": "XICOTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 3371, "tienda": "COATEPEC CENTRO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 3455, "tienda": "COSAMALOAPAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 3544, "tienda": "CORDOBA AV 11", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "PORTUARIA", "idTienda": 3555, "tienda": "DIAZ MIRON", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 4509, "tienda": "HUAUCHINANGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 5961, "tienda": "BOCA DEL RIO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 6460, "tienda": "GUTIERREZ ZAMORA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CORDOBA", "idTienda": 7230, "tienda": "ORIZABA CANADA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 7231, "tienda": "Cordoba Mercado", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 7235, "tienda": "TIERRA BLANCA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 7236, "tienda": "COSCOMATEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 7254, "tienda": "CATEMACO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 8905, "tienda": "EL TEJAR", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 8927, "tienda": "JUAN SOTO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 8932, "tienda": "MARTINEZ DE LA TORRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COSTA ESMERALDA", "idTienda": 8935, "tienda": "VEGA DE ALATORRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 8939, "tienda": "GALVAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 8940, "tienda": "MERCADITO CARDEL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 8949, "tienda": "COYUTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ORIZABA", "idTienda": 8953, "tienda": "PIEDRAS NEGRAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CUENCA", "idTienda": 8957, "tienda": "TRES VALLES", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PUERTO", "idTienda": 8958, "tienda": "Paso del Toro", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 8960, "tienda": "ZAMORA VERACRUZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "HEROICA", "idTienda": 8961, "tienda": "LAZARO CARDENAS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 8962, "tienda": "ALVARADO CENTRAL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 8963, "tienda": "CASTILLO JALAPA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 8964, "tienda": "CORDOBA SAN MIGUEL", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "XALAPA", "idTienda": 8966, "tienda": "JILOTEPEC", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 9011, "tienda": "MARIANO ABASOLO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 9014, "tienda": "HUATUSCO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "CAFETALERA", "idTienda": 9017, "tienda": "CHOCAMAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "CARDEL", "idTienda": 9019, "tienda": "Cempoala", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "COATEPEC", "idTienda": 9021, "tienda": "LAGOS", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "TUXPAN", "idTienda": 9023, "tienda": "TUXPAN RADIO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "BOCA DEL RIO", "idTienda": 9029, "tienda": "PAGES", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 9037, "tienda": "LA BURRITA MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 9038, "tienda": "SANTIAGO TUXTLA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 9040, "tienda": "CEIBA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "PINERA", "idTienda": 9046, "tienda": "TUXTEPEC JUAREZ", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "PAPANTLA", "idTienda": 9048, "tienda": "NINO ARTILLERO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 9049, "tienda": "LLANO EN MEDIO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 9052, "tienda": "TEZIUTLAN 16 DE SEPTIEMBRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "HUAUCHINANGO", "idTienda": 9067, "tienda": "LA UNO 12 DE DICIEMBRE", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "GUTIERREZ ZAMORA", "idTienda": 9080, "tienda": "MARIANO ARISTA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ CENTRO", "zona": "TEZIUTLAN", "idTienda": 9084, "tienda": "TEZIUTLAN HIDALGO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "ALVARADO", "idTienda": 9094, "tienda": "ALVARADO MERCADO", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "ALAMO", "idTienda": 9097, "tienda": "TIHUATLAN", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ NORTE", "zona": "POZA RICA", "idTienda": 9101, "tienda": "CAZONES", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}, {"region": "VERACRUZ SUR", "zona": "TUXTLAS", "idTienda": 9112, "tienda": "MANUEL DE LA CABADA", "articulo": "Rollings Best Choice Fuego 50 G", "idArticulo": "PENDIENTE", "existPiezas": 0, "existCajas": 0}];
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAC9PeqwjQOrik5fCUk7z0Aq4olj7jpKco",
+  authDomain: "checklist-rollings.firebaseapp.com",
+  projectId: "checklist-rollings",
+  storageBucket: "checklist-rollings.firebasestorage.app",
+  messagingSenderId: "212429214241",
+  appId: "1:212429214241:web:c53e4768c888d7ae0e4960"
+};
+let firebaseReady = false;
+let db = null, statusDocRef = null, photosCollection = null;
+try{
+  if(typeof firebase === 'undefined') throw new Error('SDK de Firebase no disponible (sin internet o bloqueado).');
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  statusDocRef = db.collection('checklist').doc('status');
+  photosCollection = db.collection('photos');
+  firebaseReady = true;
+}catch(e){
+  console.warn('Firebase no se pudo inicializar, la app seguirá funcionando en modo local (sin sincronización ni guardado en la nube):', e);
+}
+
+let statusMap = {}; // idTienda -> {confirmed, confirmedAt, confirmadoPor, notas, hasPhoto, piezasDevueltas, cajasDevueltas}
+let collapsedRegions = new Set();
+let currentModalStore = null;
+let pendingPhotoBase64 = null;
+let photoTouched = false;
+
+const el = id => document.getElementById(id);
+
+/* ============ INIT ============ */
+async function init(){
+  populateRegionFilter();
+  await loadStatus();
+  render();
+  bindControls();
+  listenForLiveUpdates();
+}
+
+function listenForLiveUpdates(){
+  if(!firebaseReady) return;
+  statusDocRef.onSnapshot(doc=>{
+    statusMap = doc.exists ? (doc.data() || {}) : {};
+    render();
+  }, err=>{
+    console.error('Error de sincronización en vivo', err);
+  });
+}
+
+function populateRegionFilter(){
+  const regions = [...new Set(STORES.map(s=>s.region))].sort();
+  const sel = el('regionFilter');
+  regions.forEach(r=>{
+    const o = document.createElement('option');
+    o.value = r; o.textContent = titleCase(r);
+    sel.appendChild(o);
+  });
+}
+
+async function loadStatus(){
+  if(!firebaseReady){
+    statusMap = {};
+    el('sharedNote').textContent = '⚠ Modo local: no hay conexión con Firebase, los avances NO se están guardando en la nube.';
+    return;
+  }
+  try{
+    const doc = await statusDocRef.get();
+    statusMap = doc.exists ? (doc.data() || {}) : {};
+    el('sharedNote').textContent = '● Este checklist es compartido: los avances de confirmación se sincronizan en vivo para todos los que abran este enlace.';
+  }catch(e){
+    statusMap = {};
+    el('sharedNote').textContent = '⚠ No se pudo conectar con Firebase. Revisa el firebaseConfig y tu conexión.';
+  }
+}
+
+async function saveStatus(){
+  if(!firebaseReady){
+    showToast('Guardado solo en esta sesión (sin conexión a la nube).');
+    return;
+  }
+  try{
+    await statusDocRef.set(statusMap);
+  }catch(e){
+    showToast('No se pudo guardar. Intenta de nuevo.');
+  }
+}
+
+/* ============ RENDER ============ */
+function titleCase(s){
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function getFiltered(){
+  const q = el('searchInput').value.trim().toLowerCase();
+  const region = el('regionFilter').value;
+  const status = el('statusFilter').value;
+  return STORES.filter(s=>{
+    if(region && s.region !== region) return false;
+    const st = statusMap[s.idTienda];
+    const confirmed = !!(st && st.confirmed);
+    if(status === 'pending' && confirmed) return false;
+    if(status === 'confirmed' && !confirmed) return false;
+    if(q){
+      const hay = (s.tienda + ' ' + s.idTienda + ' ' + s.zona).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function updateProgress(){
+  const total = STORES.length;
+  const done = STORES.filter(s => statusMap[s.idTienda] && statusMap[s.idTienda].confirmed).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  el('progCount').textContent = done;
+  el('progPct').textContent = pct + '%';
+  const fill = el('progressFill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('done', pct === 100);
+}
+
+function render(){
+  updateProgress();
+  const filtered = getFiltered();
+  const main = el('mainContent');
+
+  if(filtered.length === 0){
+    main.innerHTML = `<div class="empty-state"><div class="big">Sin resultados</div>Ajusta la búsqueda o los filtros.</div>`;
+    return;
+  }
+
+  const byRegion = {};
+  filtered.forEach(s=>{
+    (byRegion[s.region] = byRegion[s.region] || []).push(s);
+  });
+
+  const regionOrder = Object.keys(byRegion).sort();
+  main.innerHTML = regionOrder.map(region=>{
+    const stores = byRegion[region].sort((a,b)=> a.tienda.localeCompare(b.tienda));
+    const doneCount = stores.filter(s => statusMap[s.idTienda] && statusMap[s.idTienda].confirmed).length;
+    const collapsed = collapsedRegions.has(region);
+    return `
+    <div class="region-group ${collapsed?'collapsed':''}" data-region="${escAttr(region)}">
+      <div class="region-head" data-toggle-region="${escAttr(region)}">
+        <div class="region-title"><span class="caret">▾</span>${titleCase(region)}</div>
+        <div class="region-count"><b>${doneCount}</b>/${stores.length} confirmadas</div>
+      </div>
+      <div class="region-list">
+        ${stores.map(storeCardHtml).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  main.querySelectorAll('[data-toggle-region]').forEach(node=>{
+    node.addEventListener('click', ()=>{
+      const r = node.getAttribute('data-toggle-region');
+      if(collapsedRegions.has(r)) collapsedRegions.delete(r); else collapsedRegions.add(r);
+      render();
+    });
+  });
+  main.querySelectorAll('[data-open-id]').forEach(node=>{
+    node.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openModal(parseInt(node.getAttribute('data-open-id')));
+    });
+  });
+}
+
+function storeCardHtml(s){
+  const st = statusMap[s.idTienda];
+  const confirmed = !!(st && st.confirmed);
+  return `
+  <div class="store-card ${confirmed?'confirmed':''}">
+    <div class="status-dot"></div>
+    <div class="store-info">
+      <div class="store-name">${escHtml(titleCase(s.tienda))}</div>
+      <div class="store-meta">
+        <span>ID <b>${s.idTienda}</b></span>
+        <span class="zona-tag">${escHtml(titleCase(s.zona))}</span>
+      </div>
+    </div>
+    <div class="exist-badge">
+      <b>${s.existPiezas}</b>pz · ${s.existCajas}cj
+    </div>
+    <button class="btn ${confirmed?'btn-view':'btn-confirm'}" data-open-id="${s.idTienda}">
+      ${confirmed ? 'Ver' : 'Confirmar'}
+    </button>
+  </div>`;
+}
+
+function escHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(s){ return escHtml(s); }
+
+/* ============ MODAL ============ */
+function openModal(idTienda){
+  const store = STORES.find(s => s.idTienda === idTienda);
+  if(!store) return;
+  currentModalStore = store;
+  pendingPhotoBase64 = null;
+  photoTouched = false;
+
+  const st = statusMap[idTienda] || {};
+  el('modalRegion').textContent = titleCase(store.region) + ' · ' + titleCase(store.zona);
+  el('modalTitle').textContent = titleCase(store.tienda);
+  el('modalSub').textContent = `ID ${store.idTienda} · Existencia: ${store.existPiezas} pz / ${store.existCajas} cj`;
+
+  if(st.confirmed){
+    renderConfirmedView(st);
+  }else{
+    renderPendingView();
+  }
+  el('overlay').classList.add('open');
+}
+
+function renderPendingView(){
+  const s = currentModalStore;
+  el('modalBody').innerHTML = `
+    <div class="field-label">Piezas devueltas</div>
+    <div class="qty-row">
+      <div class="qty-field">
+        <input class="text-input qty-input" type="number" min="0" step="1" id="piezasDevueltas" value="${s.existPiezas}">
+        <span class="qty-unit">pz</span>
+      </div>
+      <div class="qty-field">
+        <input class="text-input qty-input" type="number" min="0" step="1" id="cajasDevueltas" value="${s.existCajas}">
+        <span class="qty-unit">cj</span>
+      </div>
+    </div>
+    <div class="qty-hint">Existencia en sistema: ${s.existPiezas} pz · ${s.existCajas} cj — ajusta si la cantidad real devuelta es distinta.</div>
+
+    <div class="field-label">Fotografía de soporte del resguardo</div>
+    <div class="photo-drop" id="photoDrop">
+      <span class="icon">📷</span>
+      <div class="hint"><b>Toca para tomar o subir</b> una foto del producto resguardado</div>
+      <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
+    </div>
+
+    <div class="field-label">Confirmado por <span style="font-weight:400;color:var(--text-mut)">(opcional)</span></div>
+    <input class="text-input" id="confirmadoPor" placeholder="Nombre de quien resguarda">
+
+    <div class="field-label">Notas <span style="font-weight:400;color:var(--text-mut)">(opcional)</span></div>
+    <textarea id="notas" placeholder="Observaciones sobre el retiro o resguardo…"></textarea>
+
+    <div class="modal-footer">
+      <button class="btn-big btn-primary" id="confirmBtn">Confirmar resguardo</button>
+    </div>
+  `;
+  el('photoDrop').addEventListener('click', ()=> el('photoInput').click());
+  el('photoInput').addEventListener('change', handlePhotoSelect);
+  el('confirmBtn').addEventListener('click', submitConfirmation);
+}
+
+function renderConfirmedView(st){
+  const dateStr = st.confirmedAt ? new Date(st.confirmedAt).toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'}) : '';
+  const hasQty = st.piezasDevueltas !== undefined && st.piezasDevueltas !== null;
+  el('modalBody').innerHTML = `
+    <div class="stamp-wrap"><div class="stamp">✓ Resguardo confirmado</div></div>
+    <div class="confirm-meta">${dateStr}${st.confirmadoPor ? ' · ' + escHtml(st.confirmadoPor) : ''}</div>
+
+    ${hasQty ? `
+    <div class="field-label" style="margin-top:18px;">Piezas devueltas</div>
+    <div class="qty-summary"><b>${st.piezasDevueltas}</b> pz · <b>${st.cajasDevueltas}</b> cj</div>
+    ` : ''}
+
+    <div class="field-label" style="margin-top:18px;">Fotografía de soporte</div>
+    <div class="photo-drop ${st.hasPhoto?'':''}" id="photoViewer" style="cursor:${st.hasPhoto?'pointer':'default'};">
+      ${st.hasPhoto ? '<div class="hint" id="photoLoadHint">Toca para ver la foto</div>' : '<div class="hint">No se adjuntó fotografía.</div>'}
+    </div>
+
+    ${st.notas ? `<div class="field-label">Notas</div><div style="font-size:13.5px;color:var(--text-mut);">${escHtml(st.notas)}</div>` : ''}
+
+    <div class="modal-footer">
+      <button class="btn-danger-ghost" id="undoBtn">Deshacer confirmación</button>
+    </div>
+  `;
+  if(st.hasPhoto){
+    el('photoViewer').addEventListener('click', ()=> loadAndShowPhoto(currentModalStore.idTienda));
+  }
+  el('undoBtn').addEventListener('click', undoConfirmation);
+}
+
+async function loadAndShowPhoto(idTienda){
+  const viewer = el('photoViewer');
+  if(!firebaseReady){
+    viewer.innerHTML = `<div class="hint">Sin conexión a la nube: la foto no está disponible en modo local.</div>`;
+    return;
+  }
+  viewer.innerHTML = `<div class="hint">Cargando foto…</div>`;
+  try{
+    const doc = await photosCollection.doc(String(idTienda)).get();
+    if(doc.exists && doc.data() && doc.data().photo){
+      viewer.classList.add('has-photo');
+      viewer.innerHTML = `<img src="${doc.data().photo}" alt="Soporte de resguardo">`;
+    }else{
+      viewer.innerHTML = `<div class="hint">No se encontró la fotografía.</div>`;
+    }
+  }catch(e){
+    viewer.innerHTML = `<div class="hint">No se pudo cargar la fotografía.</div>`;
+  }
+}
+
+function handlePhotoSelect(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      pendingPhotoBase64 = canvas.toDataURL('image/jpeg', 0.62);
+      photoTouched = true;
+      const drop = el('photoDrop');
+      drop.classList.add('has-photo');
+      drop.innerHTML = `<img src="${pendingPhotoBase64}" alt="Vista previa">
+        <div class="photo-actions"><button id="retakeBtn">Cambiar foto</button></div>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">`;
+      el('retakeBtn').addEventListener('click', (ev2)=>{ ev2.stopPropagation(); el('photoInput').click(); });
+      el('photoInput').addEventListener('change', handlePhotoSelect);
+      drop.onclick = (ev3)=>{ if(ev3.target.id !== 'retakeBtn') el('photoInput').click(); };
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitConfirmation(){
+  const btn = el('confirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  const idTienda = currentModalStore.idTienda;
+  const confirmadoPor = el('confirmadoPor').value.trim();
+  const notas = el('notas').value.trim();
+  const piezasRaw = el('piezasDevueltas').value;
+  const cajasRaw = el('cajasDevueltas').value;
+  const piezasDevueltas = piezasRaw === '' ? 0 : Math.max(0, parseInt(piezasRaw, 10) || 0);
+  const cajasDevueltas = cajasRaw === '' ? 0 : Math.max(0, parseInt(cajasRaw, 10) || 0);
+
+  statusMap[idTienda] = {
+    confirmed: true,
+    confirmedAt: new Date().toISOString(),
+    confirmadoPor: confirmadoPor || null,
+    notas: notas || null,
+    hasPhoto: !!pendingPhotoBase64,
+    piezasDevueltas: piezasDevueltas,
+    cajasDevueltas: cajasDevueltas
+  };
+
+  if(pendingPhotoBase64 && firebaseReady){
+    try{
+      await photosCollection.doc(String(idTienda)).set({ photo: pendingPhotoBase64 });
+    }catch(e){
+      showToast('Se confirmó, pero la foto no pudo guardarse.');
+    }
+  }
+
+  await saveStatus();
+  closeModal();
+  render();
+  showToast('Resguardo confirmado');
+}
+
+async function undoConfirmation(){
+  const idTienda = currentModalStore.idTienda;
+  delete statusMap[idTienda];
+  await saveStatus();
+  if(firebaseReady){
+    try{ await photosCollection.doc(String(idTienda)).delete(); }catch(e){}
+  }
+  closeModal();
+  render();
+  showToast('Confirmación deshecha');
+}
+
+function closeModal(){
+  el('overlay').classList.remove('open');
+  currentModalStore = null;
+}
+
+/* ============ TOAST ============ */
+let toastTimer;
+function showToast(msg){
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+
+/* ============ CONTROLS ============ */
+function bindControls(){
+  el('searchInput').addEventListener('input', render);
+  el('regionFilter').addEventListener('change', render);
+  el('statusFilter').addEventListener('change', render);
+  el('modalClose').addEventListener('click', closeModal);
+  el('overlay').addEventListener('click', (e)=>{ if(e.target.id === 'overlay') closeModal(); });
+  el('exportBtn').addEventListener('click', exportToExcel);
+}
+
+/* ============ EXPORT TO EXCEL ============ */
+async function exportToExcel(){
+  const btn = el('exportBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+
+  try{
+    // refresh status in case another user confirmed something since page load
+    await loadStatus();
+
+    const rows = STORES.map(s=>{
+      const st = statusMap[s.idTienda] || {};
+      const confirmed = !!st.confirmed;
+      return {
+        'Región': titleCase(s.region),
+        'Zona': titleCase(s.zona),
+        'ID Tienda': s.idTienda,
+        'Tienda': titleCase(s.tienda),
+        'Artículo': s.articulo,
+        'ID Artículo': s.idArticulo,
+        'Existencia Piezas': s.existPiezas,
+        'Existencia Cajas': s.existCajas,
+        'Estatus': confirmed ? 'Confirmado' : 'Pendiente',
+        'Piezas devueltas': confirmed ? (st.piezasDevueltas ?? '') : '',
+        'Cajas devueltas': confirmed ? (st.cajasDevueltas ?? '') : '',
+        'Confirmado por': st.confirmadoPor || '',
+        'Fecha y hora de confirmación': st.confirmedAt ? new Date(st.confirmedAt).toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'}) : '',
+        'Foto adjunta': confirmed ? (st.hasPhoto ? 'Sí' : 'No') : '',
+        'Notas': st.notas || ''
+      };
+    });
+
+    const totalConfirmed = rows.filter(r => r['Estatus'] === 'Confirmado').length;
+    const totalPiezasDevueltas = rows.reduce((sum, r) => sum + (typeof r['Piezas devueltas'] === 'number' ? r['Piezas devueltas'] : 0), 0);
+    const totalCajasDevueltas = rows.reduce((sum, r) => sum + (typeof r['Cajas devueltas'] === 'number' ? r['Cajas devueltas'] : 0), 0);
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      {wch:16},{wch:20},{wch:10},{wch:28},{wch:32},{wch:12},
+      {wch:10},{wch:10},{wch:12},{wch:13},{wch:13},{wch:20},{wch:20},{wch:11},{wch:34}
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimiento');
+
+    const summaryRows = [
+      {Concepto:'Artículo', Valor:'Rollings Best Choice Fuego 50 G'},
+      {Concepto:'Lote', Valor:'20626 1 M19'},
+      {Concepto:'Total de tiendas', Valor: STORES.length},
+      {Concepto:'Confirmadas', Valor: totalConfirmed},
+      {Concepto:'Pendientes', Valor: STORES.length - totalConfirmed},
+      {Concepto:'Total piezas devueltas', Valor: totalPiezasDevueltas},
+      {Concepto:'Total cajas devueltas', Valor: totalCajasDevueltas},
+      {Concepto:'% avance', Valor: Math.round(totalConfirmed/STORES.length*100) + '%'},
+      {Concepto:'Generado', Valor: new Date().toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'})}
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{wch:20},{wch:34}];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+
+    const dateTag = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `movimiento-retiro-rollings-${dateTag}.xlsx`);
+
+    render(); // reflect any refreshed statuses
+    showToast('Excel generado');
+  }catch(e){
+    showToast('No se pudo generar el Excel');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
